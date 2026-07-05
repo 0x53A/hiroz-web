@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>zenoh &amp; rust in wasm</title>
+<style>
+  :root { --bg:#101210; --panel:#181b18; --fg:#d8dcd8; --dim:#7a807a; --accent:#ff6a00; }
+  body { background:var(--bg); color:var(--fg); font-family:monospace;
+         margin:0; padding:2rem; max-width:52rem; }
+  h1 { font-size:1.2rem; letter-spacing:.15em; text-transform:uppercase;
+       border-left:6px solid var(--accent); padding-left:.6rem; }
+  a { color:var(--accent); }
+  .card { display:block; background:var(--panel); border:1px solid #2a2e2a;
+          padding:1rem 1.2rem; margin:1rem 0; text-decoration:none; color:var(--fg); }
+  .card:hover { border-color:var(--accent); }
+  .card b { color:var(--accent); }
+  .dim { color:var(--dim); font-size:.85rem; }
+</style>
+</head>
+<body>
+<h1>zenoh &amp; rust in wasm</h1>
+<p>
+Eclipse <a href="https://zenoh.io">zenoh</a> and
+<a href="https://github.com/ZettaScaleLabs/ros-z">hiroz (ros-z)</a> compiled to
+WebAssembly with a SharedArrayBuffer threadpool — a full zenoh client and a
+ROS 2 node, running in your browser tab.
+</p>
+
+<a class="card" href="./hiroz/">
+  <b>hiroz &harr; ROS 2</b><br>
+  Interactive: connect to a zenoh router, watch the live /chatter feed from a
+  ROS 2 talker (rmw_zenoh), publish your own std_msgs/String messages.
+</a>
+
+<a class="card" href="./zenoh-threads/">
+  <b>zenoh threaded runtime test</b><br>
+  Diagnostics: 6 runtime tests (cross-worker spawn, block_in_place, session
+  open, pub/sub roundtrip) against a router endpoint of your choice.
+</a>
+
+<p class="dim">
+Both demos need a zenoh router reachable from your browser, e.g. locally:<br>
+<code>zenohd --listen ws/0.0.0.0:7448</code> → endpoint <code>ws/127.0.0.1:7448</code>.<br>
+From this https page, plain <code>ws/</code> works only for
+127.0.0.1/localhost; remote routers need <code>wss/</code>.
+For the ROS 2 side, see the
+<a href="https://github.com/0x53A/ros-z/tree/wasm/examples/wasm-demo">docker compose stack</a>.
+</p>
+</body>
+</html>

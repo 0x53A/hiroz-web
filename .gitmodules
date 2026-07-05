@@ -1,0 +1,6 @@
+[submodule "ros-z-wasm"]
+	path = ros-z-wasm
+	url = git@github.com:0x53A/ros-z.git
+[submodule "zenoh-wasm"]
+	path = zenoh-wasm
+	url = git@github.com:0x53A/zenoh.git
