@@ -32,19 +32,19 @@ ROS 2 node, running in your browser tab.
   ROS 2 talker (rmw_zenoh), publish your own std_msgs/String messages.
 </a>
 
-<a class="card" href="./zenoh-threads/">
-  <b>zenoh threaded runtime test</b><br>
-  Diagnostics: 6 runtime tests (cross-worker spawn, block_in_place, session
-  open, pub/sub roundtrip) against a router endpoint of your choice.
-</a>
-
 <p class="dim">
-Both demos need a zenoh router reachable from your browser, e.g. locally:<br>
+The demo needs a zenoh router reachable from your browser, e.g. locally:<br>
 <code>zenohd --listen ws/0.0.0.0:7448</code> → endpoint <code>ws/127.0.0.1:7448</code>.<br>
 From this https page, plain <code>ws/</code> works only for
 127.0.0.1/localhost; remote routers need <code>wss/</code>.
 For the ROS 2 side, see the
-<a href="https://github.com/0x53A/ros-z/tree/wasm/examples/wasm-demo">docker compose stack</a>.
+<a href="https://github.com/0x53A/hiroz/tree/wasm/examples/wasm-demo">docker compose stack</a>.
+</p>
+
+<p class="dim">
+Diagnostics: the <a href="./zenoh-threads/">zenoh threaded runtime test</a>
+runs 6 low-level runtime tests (cross-worker spawn, block_in_place, session
+open, pub/sub roundtrip) against a router endpoint of your choice.
 </p>
 </body>
 </html>
