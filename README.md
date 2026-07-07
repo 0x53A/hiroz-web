@@ -46,10 +46,11 @@ listener and a `wss/` endpoint. Chrome additionally asks for the
 **Local Network Access** permission when a public page connects to
 localhost — accept the prompt.
 
-Router version note: the demo's WASM client is built from zenoh 1.9.0 plus
-some post-release commits; the 1.9.0 **release** router rejects its
-handshake. Use zenoh 1.8.x or a dev/nightly build (the docker stack pins a
-known-good `eclipse/zenoh:1.9.0-47` image).
+Heads-up: stock zenoh has a bug where **any** failed WebSocket handshake
+permanently kills the router's ws listener (it keeps serving `tcp/` and the
+process stays up, so it looks like a browser/mixed-content problem). If
+browsers stop connecting but ROS 2 keeps working, restart the router. See
+`zenoh-wasm/BUGREPORT-ws-listener-dies.md`.
 
 ## Layout
 
