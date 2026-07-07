@@ -42,7 +42,14 @@ the listener's log.
 
 From the https Pages site, plain `ws/` endpoints work only for
 `127.0.0.1`/`localhost` (mixed-content rules); remote routers need a TLS
-listener and a `wss/` endpoint.
+listener and a `wss/` endpoint. Chrome additionally asks for the
+**Local Network Access** permission when a public page connects to
+localhost — accept the prompt.
+
+Router version note: the demo's WASM client is built from zenoh 1.9.0 plus
+some post-release commits; the 1.9.0 **release** router rejects its
+handshake. Use zenoh 1.8.x or a dev/nightly build (the docker stack pins a
+known-good `eclipse/zenoh:1.9.0-47` image).
 
 ## Layout
 
