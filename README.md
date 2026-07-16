@@ -19,7 +19,7 @@ ROS 2 nodes speaking rmw_zenoh through that router.
 
 ```sh
 git clone --recursive https://github.com/0x53A/hiroz-web
-cd hiroz-web/ros-z-wasm/examples/wasm-demo
+cd hiroz-web/examples/wasm-demo
 docker compose up -d
 ```
 
@@ -54,13 +54,15 @@ browsers stop connecting but ROS 2 keeps working, restart the router. See
 
 ## Layout
 
+- `examples/` — source for the root-owned PoC demos that are built into
+  `docs/` by `./publish-site.sh`.
 - [`zenoh-wasm/`](https://github.com/0x53A/zenoh/tree/wasm) (submodule,
   branch `wasm`) — zenoh fork with WASM support: WebSocket transport and the
   `wasm-threads` multi-threaded runtime (pure-Rust executors on
   SharedArrayBuffer workers). Session notes in `zenoh-wasm/_Tasks/`.
 - [`ros-z-wasm/`](https://github.com/0x53A/hiroz/tree/wasm) (submodule,
-  branch `wasm`) — hiroz fork with WASM support; the browser ↔ ROS 2 demo
-  incl. docker stack under `examples/wasm-demo/`.
+  branch `wasm`) — hiroz fork with WASM support used by the root-owned
+  browser ROS 2 demo.
 - `docs/` — the GitHub Pages site (built demo artifacts). Regenerate with
   `./publish-site.sh`.
 

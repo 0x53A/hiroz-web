@@ -20,9 +20,20 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      RUSTUP_TOOLCHAIN: nightly
     steps:
-      # deliberately no submodules — docs/ is fully self-contained
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install nightly --profile minimal --component rust-src
+          rustup target add wasm32-unknown-unknown --toolchain nightly
+      - name: Install wasm-bindgen
+        run: cargo install wasm-bindgen-cli --version 0.2.126 --locked
+      - name: Build demos
+        run: ./publish-site.sh
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

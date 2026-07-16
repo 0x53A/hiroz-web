@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Headless Test</title></head>
+<body>
+  <div id="output"></div>
+  <script src="./pkg/zenoh_wasm_threaded_test.js"></script>
+  <script>
+    // Collect all console output for headless extraction
+    const logs = [];
+    const origLog = console.log.bind(console);
+    console.log = (...args) => { origLog(...args); logs.push(args.join(' ')); };
+    const origErr = console.error.bind(console);
+    console.error = (...args) => { origErr(...args); logs.push('ERROR: ' + args.join(' ')); };
+
+    async function run() {
+      await wasm_bindgen('./pkg/zenoh_wasm_threaded_test_bg.wasm');
+      await wasm_bindgen.run_threaded_test('ws/127.0.0.1:7448');
+      // Signal completion by setting a global
+      window.__TEST_DONE__ = true;
+      window.__TEST_LOGS__ = logs;
+      // Write results to DOM for easy extraction
+      document.title = 'DONE';
+    }
+    run().catch(e => {
+      console.error('Fatal: ' + e);
+      window.__TEST_DONE__ = true;
+      window.__TEST_LOGS__ = logs;
+      document.title = 'DONE';
+    });
+  </script>
+</body>
+</html>

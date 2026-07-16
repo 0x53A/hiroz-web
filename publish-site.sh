@@ -6,8 +6,8 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-ZENOH_EX=zenoh-wasm/examples/wasm-threaded
-HIROZ_EX=ros-z-wasm/examples/wasm-demo
+ZENOH_EX=examples/wasm-threaded
+HIROZ_EX=examples/wasm-demo
 
 if [ "${1:-}" != "--skip-build" ]; then
   (cd "$ZENOH_EX" && ./build.sh)
