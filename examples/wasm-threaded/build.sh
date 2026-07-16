@@ -9,7 +9,7 @@ cd "$(dirname "$0")"
 echo "Building with +atomics,+bulk-memory,+shared-memory,+import-memory..."
 echo "(First build is slow due to -Zbuild-std)"
 
-cargo build --target wasm32-unknown-unknown --release
+cargo build --locked --target wasm32-unknown-unknown --release
 
 echo "Running wasm-bindgen..."
 # Prefer an explicit/PATH wasm-bindgen; fall back to wasm-pack's cache or nix.
@@ -21,11 +21,10 @@ if [ -z "$WASM_BINDGEN" ]; then
   for dir in "$HOME"/.cache/.wasm-pack/wasm-bindgen-*/; do
     if [ -f "$dir/wasm-bindgen" ]; then
       WASM_BINDGEN="$dir/wasm-bindgen"
+      break
     fi
   done
 fi
-  fi
-done
 
 if [ -z "$WASM_BINDGEN" ]; then
   echo "wasm-bindgen not found. Using nix-shell..."

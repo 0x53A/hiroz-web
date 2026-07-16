@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-cargo build --target wasm32-unknown-unknown --release
+cargo build --locked --target wasm32-unknown-unknown --release
 
 # CLI schema version must match the wasm-bindgen crate in Cargo.lock (0.2.126):
 #   cargo install wasm-bindgen-cli --version 0.2.126

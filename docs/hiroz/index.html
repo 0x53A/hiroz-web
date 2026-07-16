@@ -24,6 +24,10 @@
   button:disabled { background:#3a3e3a; color:var(--dim); cursor:default; }
   input { background:#0c0e0c; color:var(--fg); border:1px solid #2a2e2a;
           padding:.5rem; font-family:inherit; width:60%; }
+  fieldset { border:1px solid #2a2e2a; margin:0 0 1rem 0; padding:.6rem .8rem; }
+  legend { color:var(--dim); padding:0 .35rem; }
+  label { display:block; margin:.35rem 0; }
+  input[type="radio"] { width:auto; margin-right:.45rem; }
   #feed { height:18rem; overflow-y:auto; white-space:pre-wrap; font-size:.85rem; }
   #feed .in  { color:var(--ok); }
   #feed .out { color:var(--accent); }
@@ -38,6 +42,17 @@
 <div class="row">
   <div class="panel">
     <h2>control</h2>
+    <fieldset id="message-profile">
+      <legend>ROS 2 demo node message type</legend>
+      <label>
+        <input type="radio" name="message-profile" value="jazzy">
+        Jazzy — std_msgs/msg/String
+      </label>
+      <label>
+        <input type="radio" name="message-profile" value="lyrical" checked>
+        Lyrical — example_interfaces/msg/String
+      </label>
+    </fieldset>
     <div style="margin-bottom:1rem">
       <input id="endpoint" placeholder="zenoh router endpoint" value="ws/127.0.0.1:7448">
       <button id="connect">connect</button>
@@ -54,7 +69,7 @@
     </div>
   </div>
   <div class="panel">
-    <h2>/chatter feed (std_msgs/String via rmw_zenoh)</h2>
+    <h2>/chatter feed (String via rmw_zenoh)</h2>
     <div id="feed"></div>
   </div>
 </div>
@@ -81,12 +96,14 @@ const setStatus = (txt, cls) => { $('status').textContent = txt; $('status').cla
     }
     $('connect').disabled = true;
     $('endpoint').disabled = true;
+    document.querySelectorAll('input[name="message-profile"]').forEach(input => input.disabled = true);
     if (!wasm_bindgen.ros_start('./pkg/hiroz_wasm_demo.js')) {
       setStatus('SharedArrayBuffer unavailable — serve with COOP/COEP headers', 'err');
       return;
     }
-    setStatus('connecting to ' + endpoint + '…');
-    wasm_bindgen.ros_connect(endpoint);
+    const messageProfile = document.querySelector('input[name="message-profile"]:checked').value;
+    setStatus('connecting to ' + endpoint + ' using ' + messageProfile + ' message type…');
+    wasm_bindgen.ros_connect(endpoint, messageProfile);
     setInterval(() => {
       const st = wasm_bindgen.ros_poll_status();
       if (st === 'CONNECTED') { setStatus('connected — node wasm_threaded_browser live', 'ok'); $('send').disabled = false; }
