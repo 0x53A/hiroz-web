@@ -1,26 +1,10 @@
-FROM ros:jazzy
+FROM ros:lyrical
 
-# Install build tools + demo nodes
+# Install demo nodes + rmw_zenoh from ROS binary packages.
 RUN apt-get update && apt-get install -y \
-    ros-jazzy-demo-nodes-cpp \
-    ros-jazzy-demo-nodes-py \
-    python3-colcon-common-extensions \
-    git \
-    cargo \
-    clang \
-    nlohmann-json3-dev \
+    ros-lyrical-demo-nodes-cpp \
+    ros-lyrical-rmw-zenoh-cpp \
     && rm -rf /var/lib/apt/lists/*
-
-# Build rmw_zenoh from source
-RUN mkdir -p /ros2_ws/src && \
-    cd /ros2_ws/src && \
-    git clone -b jazzy https://github.com/ros2/rmw_zenoh.git && \
-    cd /ros2_ws && \
-    . /opt/ros/jazzy/setup.sh && \
-    apt-get update && \
-    rosdep install --from-paths src --ignore-src -r -y && \
-    rm -rf /var/lib/apt/lists/* && \
-    colcon build --packages-up-to rmw_zenoh_cpp
 
 COPY zenoh_session.json5 /config/zenoh_session.json5
 

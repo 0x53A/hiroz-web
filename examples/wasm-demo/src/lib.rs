@@ -10,7 +10,7 @@ use std::sync::OnceLock;
 
 use wasm_bindgen::prelude::*;
 
-use hiroz_msgs::std_msgs::String as RosString;
+use hiroz_msgs::{example_interfaces::String as ExampleString, std_msgs::String as StdString};
 
 /// Samples received from ROS 2 (/chatter), drained by the main thread.
 static FROM_ROS: OnceLock<flume::Receiver<String>> = OnceLock::new();
@@ -19,12 +19,39 @@ static TO_ROS: OnceLock<flume::Sender<String>> = OnceLock::new();
 /// Status/error lines from the worker task.
 static STATUS: OnceLock<flume::Receiver<String>> = OnceLock::new();
 
+#[derive(Clone, Copy)]
+enum MessageProfile {
+    Jazzy,
+    Lyrical,
+}
+
+impl MessageProfile {
+    fn parse(value: &str) -> Result<Self, String> {
+        match value {
+            "jazzy" => Ok(Self::Jazzy),
+            "lyrical" => Ok(Self::Lyrical),
+            other => Err(format!("unsupported message profile: {other}")),
+        }
+    }
+}
+
 /// Initialize the threaded runtime. Returns false if SharedArrayBuffer is
 /// unavailable (missing COOP/COEP headers).
 #[wasm_bindgen]
 pub fn ros_start(shim_url: &str) -> bool {
+    if let Ok(error_ctor) = js_sys::Reflect::get(&js_sys::global(), &JsValue::from_str("Error")) {
+        let _ = js_sys::Reflect::set(
+            &error_ctor,
+            &JsValue::from_str("stackTraceLimit"),
+            &JsValue::from_f64(50.0),
+        );
+    }
     std::panic::set_hook(Box::new(|info| {
         web_sys::console::error_1(&JsValue::from_str(&format!("PANIC: {info}")));
+        let error = js_sys::Error::new("");
+        if let Ok(stack) = js_sys::Reflect::get(error.as_ref(), &JsValue::from_str("stack")) {
+            web_sys::console::error_1(&stack);
+        }
     }));
     tracing_wasm::set_as_global_default_with_config(
         tracing_wasm::WASMLayerConfigBuilder::new()
@@ -38,7 +65,7 @@ pub fn ros_start(shim_url: &str) -> bool {
 /// Spawn the ROS worker task on the Application worker. Call once, after
 /// `ros_start` returned true.
 #[wasm_bindgen]
-pub fn ros_connect(router_endpoint: String) {
+pub fn ros_connect(router_endpoint: String, message_profile: String) {
     let (from_tx, from_rx) = flume::unbounded::<String>();
     let (to_tx, to_rx) = flume::unbounded::<String>();
     let (status_tx, status_rx) = flume::unbounded::<String>();
@@ -52,7 +79,14 @@ pub fn ros_connect(router_endpoint: String) {
     zenoh_runtime::ZRuntime::Application.spawn(async move {
         zenoh_runtime::spawn_on_current(async move {
             let status_tx2 = status_tx.clone();
-            match ros_worker(from_tx, to_rx, status_tx, router_endpoint).await {
+            let profile = match MessageProfile::parse(&message_profile) {
+                Ok(profile) => profile,
+                Err(e) => {
+                    let _ = status_tx2.send(format!("ERROR: {e}"));
+                    return;
+                }
+            };
+            match ros_worker(from_tx, to_rx, status_tx, router_endpoint, profile).await {
                 Ok(()) => {}
                 Err(e) => {
                     let _ = status_tx2.send(format!("ERROR: {e}"));
@@ -68,6 +102,7 @@ async fn ros_worker(
     to_rx: flume::Receiver<String>,
     status_tx: flume::Sender<String>,
     router_endpoint: String,
+    message_profile: MessageProfile,
 ) -> Result<(), String> {
     use hiroz::context::ZContextBuilder;
     use hiroz::Builder;
@@ -92,41 +127,53 @@ async fn ros_worker(
         .create_node("wasm_threaded_browser")
         .build()
         .map_err(|e| format!("node: {e}"))?;
-    let sub = node
-        .create_sub::<RosString>("chatter")
-        .build()
-        .map_err(|e| format!("subscriber: {e}"))?;
-    let publisher = node
-        .create_pub::<RosString>("chatter")
-        .build()
-        .map_err(|e| format!("publisher: {e}"))?;
 
-    let _ = status_tx.send("CONNECTED".to_string());
+    macro_rules! run_typed {
+        ($message_type:ident, $label:literal) => {{
+            let sub = node
+                .create_sub::<$message_type>("chatter")
+                .build()
+                .map_err(|e| format!("{} subscriber: {e}", $label))?;
+            let publisher = node
+                .create_pub::<$message_type>("chatter")
+                .build()
+                .map_err(|e| format!("{} publisher: {e}", $label))?;
 
-    // Serve both directions: incoming /chatter samples and outgoing publishes.
-    enum Ev {
-        FromRos(Result<RosString, String>),
-        ToRos(Result<String, flume::RecvError>),
-    }
-    loop {
-        let recv_ros = async { Ev::FromRos(sub.async_recv().await.map_err(|e| e.to_string())) };
-        let recv_ui = async { Ev::ToRos(to_rx.recv_async().await) };
-        match futures_race(recv_ros, recv_ui).await {
-            Ev::FromRos(Ok(msg)) => {
-                let _ = from_tx.send(msg.data);
+            let _ = status_tx.send("CONNECTED".to_string());
+
+            // Serve both directions: incoming /chatter samples and outgoing publishes.
+            enum Ev {
+                FromRos(Result<$message_type, String>),
+                ToRos(Result<String, flume::RecvError>),
             }
-            Ev::FromRos(Err(e)) => {
-                let _ = status_tx.send(format!("ERROR: recv: {e}"));
-            }
-            Ev::ToRos(Ok(text)) => {
-                if let Err(e) = publisher.async_publish(&RosString { data: text }).await {
-                    let _ = status_tx.send(format!("ERROR: publish: {e}"));
+            loop {
+                let recv_ros =
+                    async { Ev::FromRos(sub.async_recv().await.map_err(|e| e.to_string())) };
+                let recv_ui = async { Ev::ToRos(to_rx.recv_async().await) };
+                match futures_race(recv_ros, recv_ui).await {
+                    Ev::FromRos(Ok(msg)) => {
+                        let _ = from_tx.send(msg.data);
+                    }
+                    Ev::FromRos(Err(e)) => {
+                        let _ = status_tx.send(format!("ERROR: {} recv: {e}", $label));
+                    }
+                    Ev::ToRos(Ok(text)) => {
+                        if let Err(e) = publisher.async_publish(&$message_type { data: text }).await
+                        {
+                            let _ = status_tx.send(format!("ERROR: {} publish: {e}", $label));
+                        }
+                    }
+                    Ev::ToRos(Err(_)) => break, // UI channel closed
                 }
             }
-            Ev::ToRos(Err(_)) => break, // UI channel closed
-        }
+            Ok(())
+        }};
     }
-    Ok(())
+
+    match message_profile {
+        MessageProfile::Jazzy => run_typed!(StdString, "std_msgs/msg/String"),
+        MessageProfile::Lyrical => run_typed!(ExampleString, "example_interfaces/msg/String"),
+    }
 }
 
 /// Race two futures, returning the first result. Minimal `select` without
@@ -170,10 +217,13 @@ pub fn ros_poll_status() -> JsValue {
     }
 }
 
-/// Publish a std_msgs/String to /chatter.
+/// Publish a String message to /chatter.
 #[wasm_bindgen]
 pub fn ros_publish(text: String) -> bool {
-    TO_ROS.get().map(|tx| tx.send(text).is_ok()).unwrap_or(false)
+    TO_ROS
+        .get()
+        .map(|tx| tx.send(text).is_ok())
+        .unwrap_or(false)
 }
 
 // ---------------------------------------------------------------------------
@@ -214,7 +264,7 @@ pub async fn run_threaded_ros_test() {
     log("Threaded runtime initialized (5 workers)");
     js_sleep(500).await;
 
-    ros_connect("ws/127.0.0.1:7448".to_string());
+    ros_connect("ws/127.0.0.1:7448".to_string(), "lyrical".to_string());
 
     // Wait for CONNECTED
     log("Test 1: hiroz context + node on threadpool...");
@@ -240,7 +290,7 @@ pub async fn run_threaded_ros_test() {
     }
     log("  PASS: connected, node + pub/sub declared on worker");
 
-    // Test 2: receive from the ROS 2 Jazzy talker (publishes every 1s)
+    // Test 2: receive from the ROS 2 Lyrical talker (publishes every 1s)
     log("Test 2: receive /chatter from ROS 2 talker...");
     let mut got: Option<String> = None;
     for _ in 0..150 {

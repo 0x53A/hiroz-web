@@ -954,6 +954,7 @@ dependencies = [
  "sha2",
  "slab",
  "strum",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-util",
  "tracing",
@@ -970,7 +971,7 @@ dependencies = [
  "bytemuck",
  "byteorder",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "zenoh-buffers",
 ]
 
@@ -1401,6 +1402,15 @@ name = "log"
 version = "0.4.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ceec5bc11778974d1bcb055b18002eba7f4b3518b6a0081b3af5f21666da9ad"
+
+[[package]]
+name = "lru"
+version = "0.16.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f66e8d5d03f609abc3a39e6f08e4164ebf1447a732906d39eb9b99b7919ef39"
+dependencies = [
+ "hashbrown 0.16.1",
+]
 
 [[package]]
 name = "lz4_flex"
@@ -1908,6 +1918,15 @@ checksum = "8d3e7aa0a681b232e7cd7f856a53b10603df88ca74b79a8d8088845185492e35"
 dependencies = [
  "array-init",
  "crossbeam",
+]
+
+[[package]]
+name = "rlimit"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7043b63bd0cd1aaa628e476b80e6d4023a3b50eb32789f2728908107bd0c793a"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
@@ -3390,17 +3409,19 @@ dependencies = [
 name = "zenoh-ext"
 version = "1.9.0"
 dependencies = [
- "async-trait",
  "bincode",
  "flume",
  "futures",
  "leb128",
+ "lru",
  "serde",
  "tokio",
+ "tokio-util",
  "tracing",
  "uhlc",
  "zenoh",
  "zenoh-macros",
+ "zenoh-runtime",
  "zenoh-util",
 ]
 
@@ -3566,12 +3587,12 @@ dependencies = [
  "advisory-lock",
  "async-trait",
  "buddy_system_allocator",
- "cfg_aliases 0.2.1",
  "crossbeam-channel",
  "crossbeam-queue",
  "nix",
  "num-traits",
  "rand",
+ "rlimit",
  "stabby",
  "static_assertions",
  "static_init",

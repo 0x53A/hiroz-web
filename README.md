@@ -7,7 +7,7 @@ systems via rmw_zenoh.
 
 **Live demo:** https://0x53a.github.io/hiroz-web/hiroz/ — connect to a zenoh
 router, watch the live `/chatter` feed from a ROS 2 talker, publish your own
-`std_msgs/String` messages. (Landing page with all demos:
+ROS String messages. (Landing page with all demos:
 https://0x53a.github.io/hiroz-web/)
 
 ## Trying the demo against your own ROS 2 system
@@ -15,7 +15,11 @@ https://0x53a.github.io/hiroz-web/)
 The browser needs two things: a zenoh router with a WebSocket listener, and
 ROS 2 nodes speaking rmw_zenoh through that router.
 
-**Option A — docker compose (router + ROS 2 Jazzy talker/listener):**
+The browser demo lets you choose the `/chatter` message profile before
+connecting: Jazzy uses `std_msgs/msg/String`, and Lyrical uses
+`example_interfaces/msg/String`.
+
+**Option A — docker compose (router + ROS 2 Lyrical talker/listener):**
 
 ```sh
 git clone --recursive https://github.com/0x53A/hiroz-web

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Headless Chrome runner for the threaded hiroz <-> ROS 2 test.
 // Prerequisites: COEP server (python3 serve.py 8083), docker compose stack
-// in this directory (zenoh router + ROS 2 Jazzy talker/listener).
+// in this directory (zenoh router + ROS 2 Lyrical talker/listener).
 
 import puppeteer from 'puppeteer-core';
 
@@ -9,7 +9,7 @@ const URL = 'http://localhost:8083/test_headless.html';
 const TIMEOUT_S = parseInt(process.argv[2] || '60', 10);
 
 const browser = await puppeteer.launch({
-  executablePath: '/run/current-system/sw/bin/google-chrome-stable',
+  executablePath: process.env.CHROME_BIN || '/run/current-system/sw/bin/google-chrome-stable',
   headless: true,
   args: ['--no-sandbox', '--disable-gpu'],
 });

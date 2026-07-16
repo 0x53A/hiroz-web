@@ -11,13 +11,14 @@ crate-type = ["cdylib"]
 
 [dependencies]
 hiroz = { path = "../../ros-z-wasm/crates/hiroz", default-features = false, features = [
-  "jazzy",
+  "lyrical",
   "rmw-zenoh",
 ] }
 hiroz-cdr = { path = "../../ros-z-wasm/crates/hiroz-cdr" }
-# std_msgs::String generated from the vendored message definitions
-# (type name + RIHS01 hash computed by hiroz-codegen at build time)
+# String message types generated from the vendored message definitions
+# (type names + RIHS01 hashes computed by hiroz-codegen at build time)
 hiroz-msgs = { path = "../../ros-z-wasm/crates/hiroz-msgs", default-features = false, features = [
+  "example_interfaces",
   "std_msgs",
 ] }
 hiroz-protocol = { path = "../../ros-z-wasm/crates/hiroz-protocol", default-features = false, features = [

@@ -1,10 +1,8 @@
 #!/bin/bash
 set -e
 
-# Source ROS 2 Jazzy
-source /opt/ros/jazzy/setup.bash
-# Source the rmw_zenoh workspace overlay
-source /ros2_ws/install/setup.bash
+# Source ROS 2 Lyrical
+source /opt/ros/lyrical/setup.bash
 
 export RMW_IMPLEMENTATION=rmw_zenoh_cpp
 export ZENOH_SESSION_CONFIG_URI=/config/zenoh_session.json5

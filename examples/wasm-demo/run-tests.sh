@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build the demo, bring up the ROS 2 docker stack, and run the headless
-# end-to-end test (browser ↔ zenoh router ↔ ROS 2 Jazzy via rmw_zenoh).
+# end-to-end test (browser ↔ zenoh router ↔ ROS 2 Lyrical via rmw_zenoh).
 #
 # Usage: ./run-tests.sh [--keep-stack]
 #   --keep-stack   leave the docker compose stack running afterwards
@@ -22,7 +22,7 @@ trap cleanup EXIT
 
 ./build.sh
 
-echo "=== Starting ROS 2 stack (zenoh router + Jazzy talker/listener) ==="
+echo "=== Starting ROS 2 stack (zenoh router + Lyrical talker/listener) ==="
 docker compose up -d --wait
 echo "Waiting for ROS 2 nodes..."
 sleep 8

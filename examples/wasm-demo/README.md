@@ -2,7 +2,7 @@
 
 hiroz (ros-z) compiled to multi-threaded WebAssembly (`wasm-threads` feature of
 the zenoh fork): SharedArrayBuffer Web Workers running pure-Rust executors,
-talking to a ROS 2 Jazzy system via rmw_zenoh. Verified bidirectional:
+talking to a ROS 2 Lyrical system via rmw_zenoh. Verified bidirectional:
 
 - ROS 2 `talker` → rmw_zenoh → zenoh router → **browser subscriber** (threadpool worker)
 - **Browser publisher** → zenoh router → rmw_zenoh → ROS 2 `listener`
@@ -21,7 +21,7 @@ Browser tab
                                               ▼ WebSocket :7448
                                         zenoh router (docker)
                                               ▼ TCP :7447
-                                        ROS 2 Jazzy + rmw_zenoh_cpp (docker)
+                                        ROS 2 Lyrical + rmw_zenoh_cpp (docker)
                                         demo_nodes_cpp talker / listener
 ```
 
@@ -29,9 +29,11 @@ The whole ROS stack lives in one task on the Application worker; the main
 thread only moves strings through flume channels (`ros_poll`/`ros_publish`).
 Nothing on the main thread ever blocks.
 
-`std_msgs/String` comes from `hiroz-msgs` (generated at build time from the
-vendored message definitions, including the RIHS01 type hash) — no hand-written
-message types.
+`std_msgs/String` and `example_interfaces/String` come from `hiroz-msgs`
+(generated at build time from the vendored message definitions, including the
+RIHS01 type hash) — no hand-written message types. The UI selects exactly one
+profile at connection time: Jazzy uses `std_msgs/msg/String`, and Lyrical uses
+`example_interfaces/msg/String`.
 
 ## Build & run
 
@@ -46,7 +48,7 @@ cargo install wasm-bindgen-cli --version 0.2.126
 
 # — or step by step —
 ./build.sh
-docker compose up -d          # zenoh router + ROS 2 Jazzy talker/listener
+docker compose up -d          # zenoh router + ROS 2 Lyrical talker/listener
 python3 serve.py 8083         # COOP/COEP server (SharedArrayBuffer)
 node run_headless.mjs         # automated test (headless Chrome)
 
