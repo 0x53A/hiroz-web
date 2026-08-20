@@ -41,7 +41,7 @@ Requires nightly Rust (build-std; flags in `.cargo/config.toml`) and
 `wasm-bindgen-cli` matching the crate version in Cargo.lock:
 
 ```sh
-cargo install wasm-bindgen-cli --version 0.2.126
+cargo install wasm-bindgen-cli --version 0.2.127
 
 # everything below in one go: build, docker stack, headless e2e test
 ./run-tests.sh
@@ -61,19 +61,14 @@ docker compose logs ros2 | grep "threaded WASM"
 
 ## Notes
 
-- **zenoh ws-listener DoS (`BUGREPORT-ws-listener-dies.md` in the zenoh
-  fork):** any connection that fails the WebSocket handshake — a port scan,
-  a `curl`, or a browser that gives up mid-upgrade — **permanently kills the
-  ws accept loop**. The process keeps running and keeps serving `tcp/7447`,
-  so it looks like a client-side or mixed-content problem. If browsers stop
-  connecting but ROS 2 keeps chattering, restart the router
-  (`docker compose restart zenoh-router`). This is stock upstream zenoh
-  behaviour, independent of version.
+- **Older zenoh routers:** zenoh 1.9.x allowed a failed WebSocket handshake to
+  kill the ws accept loop permanently. Zenoh 1.10.0 fixes this; the Compose
+  stack is pinned to 1.10.0. `BUGREPORT-ws-listener-dies.md` in the zenoh fork
+  retains the original report and analysis.
 - **Chrome + public pages:** from a public (https) page — e.g. the GitHub
   Pages demo — connecting to `ws/127.0.0.1` triggers Chrome's Local Network
   Access permission prompt; accept it. Headless Chrome denies it silently
-  (and that denied handshake trips the DoS above). Local pages
-  (`http://localhost`, via `serve.py`) and Firefox are unaffected.
+  Local pages (`http://localhost`, via `serve.py`) and Firefox are unaffected.
 - rmw_zenoh sessions don't survive a router restart — restart the `ros2`
   container too (`docker compose restart ros2`) if you bounce the router.
 

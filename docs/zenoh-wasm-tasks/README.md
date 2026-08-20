@@ -3,7 +3,7 @@
 Port of Eclipse Zenoh to `wasm32-unknown-unknown` with WebSocket transport,
 enabling browser-based zenoh clients via Web Workers.
 
-## Status: Both modes working (single- and multi-threaded), zenoh 1.9.0
+## Status: Both modes working (single- and multi-threaded), zenoh 1.10.0
 
 **Single-threaded (default):** Pub/sub works end-to-end: browser ↔ router ↔ CLI.
 7 automated tests pass (5 basic + 2 session with router).

@@ -16,7 +16,7 @@ Acceptor worker owns all WebSocket I/O on a JS event loop.
 ## Build & run
 
 Requires nightly Rust with `rust-src` (build-std; all flags live in
-`.cargo/config.toml`) and wasm-bindgen CLI 0.2.126 (matching Cargo.lock).
+`.cargo/config.toml`) and wasm-bindgen CLI 0.2.127 (matching Cargo.lock).
 
 ```sh
 ./build.sh

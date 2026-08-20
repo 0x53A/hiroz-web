@@ -5,7 +5,7 @@
 # Usage: ./run-tests.sh [--keep-stack]
 #   --keep-stack   leave the docker compose stack running afterwards
 #
-# Requirements: nightly Rust, wasm-bindgen-cli 0.2.126, docker compose,
+# Requirements: nightly Rust, wasm-bindgen-cli 0.2.127, docker compose,
 #               python3, node + puppeteer-core, Chrome.
 set -euo pipefail
 cd "$(dirname "$0")"

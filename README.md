@@ -50,11 +50,10 @@ listener and a `wss/` endpoint. Chrome additionally asks for the
 **Local Network Access** permission when a public page connects to
 localhost — accept the prompt.
 
-Heads-up: stock zenoh has a bug where **any** failed WebSocket handshake
-permanently kills the router's ws listener (it keeps serving `tcp/` and the
-process stays up, so it looks like a browser/mixed-content problem). If
-browsers stop connecting but ROS 2 keeps working, restart the router. See
-`zenoh-wasm/BUGREPORT-ws-listener-dies.md`.
+Zenoh 1.10.0 fixes the WebSocket accept-loop bug where a failed handshake
+permanently killed the router's ws listener. If you run a 1.9.x router and
+browsers stop connecting while ROS 2 keeps working, restart or upgrade the
+router. See `zenoh-wasm/BUGREPORT-ws-listener-dies.md` for the original report.
 
 ## Layout
 

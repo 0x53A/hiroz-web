@@ -17,6 +17,9 @@ WASM_BINDGEN="${WASM_BINDGEN:-}"
 if [ -z "$WASM_BINDGEN" ]; then
   WASM_BINDGEN="$(command -v wasm-bindgen || true)"
 fi
+if [ -z "$WASM_BINDGEN" ] && [ -x "${CARGO_HOME:-$HOME/.cargo}/bin/wasm-bindgen" ]; then
+  WASM_BINDGEN="${CARGO_HOME:-$HOME/.cargo}/bin/wasm-bindgen"
+fi
 if [ -z "$WASM_BINDGEN" ]; then
   for dir in "$HOME"/.cache/.wasm-pack/wasm-bindgen-*/; do
     if [ -f "$dir/wasm-bindgen" ]; then
