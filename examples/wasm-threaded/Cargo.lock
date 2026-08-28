@@ -2675,6 +2675,7 @@ dependencies = [
  "futures",
  "git-version",
  "itertools",
+ "js-sys",
  "json5",
  "lazy_static",
  "nonempty-collections",
