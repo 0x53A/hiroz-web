@@ -53,8 +53,10 @@ performance claims. The new documentation is intentionally additional.
 
 ## Fresh validation
 
-All checks below passed after the merges and production-code cleanup. Browser
-checks used Firefox; router fixtures used Zenoh 1.10.1. The local nightly was
+All checks below passed after the merges and production-code cleanup. Firefox
+ran the standalone runtime and telemetry checks; the other example harnesses
+used Chrome. The threaded runtime used a Zenoh 1.10.1 router; the checked-in ROS
+and turtle fixtures use Zenoh 1.10.0. The local nightly was
 unusable, so threaded builds used installed Rust 1.97.1 with
 `RUSTUP_TOOLCHAIN=1.97.1 RUSTC_BOOTSTRAP=1` for the existing `build-std` flags.
 That is a local validation workaround, not a change to the project's toolchain.

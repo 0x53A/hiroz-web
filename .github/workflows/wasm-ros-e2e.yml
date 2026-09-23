@@ -34,6 +34,15 @@ jobs:
           cargo test --locked -p hiroz --lib queue::timeout_tests
           cargo test --locked -p hiroz --test queue
           cargo test --locked -p hiroz-codegen --test action_nested_deps
+          cargo test --locked -p hiroz --test shm test_async_builder
+
+      - name: Verify Zenoh workspace lockfile and timer ownership
+        working-directory: zenoh-wasm
+        run: |
+          cargo test --locked -p zenoh-task --lib termination_tests
+          cargo test --locked -p zenoh-transport --lib timeout_tracker_tests
+          cargo test --locked -p zenoh --lib close_builder_tests
+          cargo test --locked -p zenoh --lib ring_timeout_tests
 
   hiroz-talker:
     runs-on: ubuntu-latest
