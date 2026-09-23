@@ -70,7 +70,7 @@ example's `serve.py`, which sends real COOP/COEP headers.
 
 ## Stability and WASM runtime boundaries
 
-For a guide to the changes that upstream maintainers can reuse, see the
+For browser architecture, build/test instructions and limitations, see the
 [Zenoh branch notes](zenoh-wasm/WASM.md) and [hiroz branch notes](ros-z-wasm/WASM.md).
 The [upstream merge and cleanup review](docs/reviews/2026-09-23-upstream-cleanup.md)
 records the merged revisions, remaining compromises and fresh validation.

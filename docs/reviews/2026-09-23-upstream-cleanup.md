@@ -1,7 +1,6 @@
-# Upstream merge and browser branch handoff — 2026-09-23
+# Upstream merge and browser cleanup — 2026-09-23
 
-These branches demonstrate a working browser port from which maintainers can
-reuse individual changes. The entry points are [Zenoh's branch notes](../../zenoh-wasm/WASM.md)
+These branches implement browser support for Zenoh and hiroz. The entry points are [Zenoh's branch notes](../../zenoh-wasm/WASM.md)
 and [hiroz's branch notes](../../ros-z-wasm/WASM.md). Clone this integration
 repository recursively to obtain the matching dependencies and runnable demos.
 
@@ -38,7 +37,7 @@ transport remains enabled. The example lockfiles use the matching Zenoh version.
   [here](historical-ws-listener-bug.md), outside the Zenoh library diff.
 
 Measured against the newly merged upstream mains with `git diff --numstat`
-(additions plus deletions), before adding the new branch handoff documents:
+(additions plus deletions), before adding the new browser documentation:
 
 | Fork | After merge | After cleanup | Reduction |
 | --- | ---: | ---: | ---: |
@@ -107,4 +106,4 @@ closes the connection because browser WebSockets offer no receive backpressure.
 The tests establish browser/ROS fixture behavior, including simulated-device
 watchdogs. They do not establish hard control deadlines, cancellation of an
 autonomous goal after connection loss, native Nav2 compatibility, or physical
-TurtleBot operation. These limits should accompany a branch link.
+TurtleBot operation.

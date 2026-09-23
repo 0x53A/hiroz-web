@@ -45,10 +45,6 @@ fixes and passed afterwards. The broad native Zenoh suite originally passed but
 logged task-termination errors during topology teardown; the final rerun passed
 without those errors. The native self-join test isolates that ownership problem.
 
-Reusable commits are split by subject: Zenoh `e4b7e2274` (ring deadline),
-`25026cd64` (task/timer ownership), and `e5b113d56` (browser deadlines and test
-wiring); hiroz `39d7aed4` (managed goal cleanup) and `b052eadf` (async SHM setup).
-
 ## Validation
 
 | Suite | Passing result |
