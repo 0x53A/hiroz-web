@@ -954,7 +954,7 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hiroz"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "byteorder",
  "clap",
@@ -962,6 +962,7 @@ dependencies = [
  "dashmap",
  "event-listener",
  "flume",
+ "futures",
  "hiroz-cdr",
  "hiroz-derive",
  "hiroz-protocol",
@@ -983,11 +984,12 @@ dependencies = [
  "zenoh",
  "zenoh-buffers",
  "zenoh-ext",
+ "zenoh-runtime",
 ]
 
 [[package]]
 name = "hiroz-cdr"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bytemuck",
  "byteorder",
@@ -998,7 +1000,7 @@ dependencies = [
 
 [[package]]
 name = "hiroz-codegen"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "hex",
@@ -1014,8 +1016,9 @@ dependencies = [
 
 [[package]]
 name = "hiroz-derive"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
+ "hiroz-schema",
  "proc-macro2",
  "quote",
  "syn 2.0.119",
@@ -1023,7 +1026,7 @@ dependencies = [
 
 [[package]]
 name = "hiroz-msgs"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -1041,14 +1044,15 @@ dependencies = [
 
 [[package]]
 name = "hiroz-protocol"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
+ "hiroz-schema",
  "zenoh",
 ]
 
 [[package]]
 name = "hiroz-schema"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hex",
  "serde",
@@ -1060,13 +1064,18 @@ dependencies = [
 name = "hiroz-wasm-demo"
 version = "0.1.0"
 dependencies = [
+ "bytemuck",
+ "byteorder",
  "flume",
  "hiroz",
  "hiroz-cdr",
+ "hiroz-codegen",
  "hiroz-msgs",
  "hiroz-protocol",
  "js-sys",
  "serde",
+ "serde_json",
+ "tokio",
  "tracing",
  "tracing-wasm",
  "wasm-bindgen",
@@ -1074,6 +1083,7 @@ dependencies = [
  "web-sys",
  "zenoh",
  "zenoh-runtime",
+ "zenoh-transport",
 ]
 
 [[package]]
@@ -3408,6 +3418,7 @@ dependencies = [
  "futures",
  "git-version",
  "itertools",
+ "js-sys",
  "json5",
  "lazy_static",
  "nonempty-collections",

@@ -19,6 +19,9 @@ deploy() { # deploy <src-example-dir> <docs-subdir>
   rm -rf "$dst"
   mkdir -p "$dst/pkg"
   cp "$src/index.html" "$dst/"
+  for asset in turtle.css turtle.js; do
+    [ ! -f "$src/$asset" ] || cp "$src/$asset" "$dst/"
+  done
   # COOP/COEP shim, if the example ships one (needed when the host can't
   # send the headers itself; SharedArrayBuffer requires cross-origin isolation)
   [ -f "$src/coi-serviceworker.js" ] && cp "$src/coi-serviceworker.js" "$dst/"

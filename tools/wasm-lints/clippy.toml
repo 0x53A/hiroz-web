@@ -1,0 +1,30 @@
+# Applied only to wasm32 checks by check-wasm-boundary.sh. Synchronization
+# (tokio::sync, tokio-util cancellation) is allowed; execution requires our runtime.
+disallowed-methods = [
+  { path = "std::sync::Condvar::wait_timeout_while", reason = "Internally calls unsupported std::time::Instant on WASM; use platform deadline with wait_timeout on compute workers" },
+  { path = "tokio::spawn", reason = "Use the WASM platform runtime, not Tokio execution" },
+  { path = "tokio::task::spawn", reason = "Use the WASM platform runtime" },
+  { path = "tokio::task::spawn_local", reason = "Use zenoh_runtime::spawn_on_current" },
+  { path = "tokio::task::spawn_blocking", reason = "No Tokio runtime exists in the browser" },
+  { path = "tokio::task::block_in_place", reason = "Use zenoh_runtime::ZRuntime" },
+  { path = "tokio::task::yield_now", reason = "Use the platform yield" },
+  { path = "tokio::time::sleep", reason = "Use the platform clock/timer" },
+  { path = "tokio::time::sleep_until", reason = "Use the platform clock/timer" },
+  { path = "tokio::time::timeout", reason = "Use the platform timeout" },
+  { path = "tokio::time::timeout_at", reason = "Use the platform timeout" },
+  { path = "tokio::time::interval", reason = "Use the platform clock/timer" },
+  { path = "tokio::time::interval_at", reason = "Use the platform clock/timer" },
+  { path = "std::time::Instant::now", reason = "std Instant panics on wasm32-unknown-unknown" },
+  { path = "std::time::SystemTime::now", reason = "Use the platform wall clock" },
+  { path = "std::thread::spawn", reason = "Use the browser worker runtime" },
+  { path = "std::thread::sleep", reason = "Use an asynchronous platform sleep" },
+  { path = "std::thread::park", reason = "Cannot block browser event-loop threads" },
+]
+disallowed-types = [
+  { path = "tokio::runtime::Runtime", reason = "Tokio execution is not supported on WASM" },
+  { path = "tokio::runtime::Handle", reason = "Tokio execution is not supported on WASM" },
+  { path = "tokio::task::JoinSet", reason = "Use the platform task lifecycle" },
+  { path = "tokio::time::Instant", reason = "Use the platform monotonic clock" },
+  { path = "tokio::time::Sleep", reason = "Use the platform timer" },
+  { path = "tokio::time::Interval", reason = "Use the platform clock" },
+]

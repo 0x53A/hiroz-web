@@ -23,7 +23,7 @@ trap cleanup EXIT
 ./build.sh
 
 echo "=== Starting ROS 2 stack (zenoh router + Lyrical talker/listener) ==="
-docker compose up -d --wait
+docker compose up -d --build --wait
 echo "Waiting for ROS 2 nodes..."
 sleep 8
 
@@ -34,10 +34,11 @@ for _ in $(seq 20); do
     sleep 0.5
 done
 
+TEST_STARTED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 node run_headless.mjs 60
 
 echo ""
 echo "=== browser → ROS 2 direction (listener log) ==="
-docker compose logs ros2 2>&1 | grep "threaded WASM" | tail -3 \
+docker compose logs --since "$TEST_STARTED" ros2 2>&1 | grep "threaded WASM" | tail -3 \
     || { echo "FAIL: listener never heard the browser's message"; exit 1; }
 echo "OK"

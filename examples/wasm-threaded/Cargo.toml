@@ -10,6 +10,11 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
+zenoh-link = { path = "../../zenoh-wasm/io/zenoh-link", default-features = false, features = ["transport_ws"] }
+futures = "0.3"
+zenoh-task = { path = "../../zenoh-wasm/commons/zenoh-task" }
+zenoh-link-ws = { path = "../../zenoh-wasm/io/zenoh-links/zenoh-link-ws" }
+zenoh-link-commons = { path = "../../zenoh-wasm/io/zenoh-link-commons" }
 zenoh = { path = "../../zenoh-wasm/zenoh", default-features = false, features = ["transport_ws"] }
 zenoh-runtime = { path = "../../zenoh-wasm/commons/zenoh-runtime", features = ["wasm-threads"] }
 flume = "0.11"

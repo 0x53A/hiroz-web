@@ -27,7 +27,7 @@ fi
 
 echo ""
 echo "Build complete. Run:"
-echo "  docker compose up -d                       # ROS 2 stack + router"
+echo "  zenohd --listen ws/127.0.0.1:7448           # only demo runtime service"
 echo "  python3 serve.py 8083                      # COEP server"
-echo "  node run_headless.mjs                      # automated test"
-echo "  # or open http://localhost:8083 for the interactive page"
+echo "  # open http://localhost:8083, then Open simulated device"
+echo "  # tests: ./run-turtle-tests.sh --skip-build"

@@ -20,6 +20,8 @@ hiroz-cdr = { path = "../../ros-z-wasm/crates/hiroz-cdr" }
 hiroz-msgs = { path = "../../ros-z-wasm/crates/hiroz-msgs", default-features = false, features = [
   "example_interfaces",
   "std_msgs",
+  "geometry_msgs",
+  "nav_msgs",
 ] }
 hiroz-protocol = { path = "../../ros-z-wasm/crates/hiroz-protocol", default-features = false, features = [
   "std",
@@ -35,8 +37,13 @@ zenoh-runtime = { path = "../../zenoh-wasm/commons/zenoh-runtime", features = [
   "wasm-threads",
 ] }
 
+zenoh-transport = { path = "../../zenoh-wasm/io/zenoh-transport", default-features = false, features = ["test"] }
 flume = "0.11"
+tokio = { version = "1", default-features = false, features = ["macros"] }
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+byteorder = "1"
+bytemuck = { version = "1", features = ["derive"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
@@ -45,10 +52,14 @@ web-sys = { version = "0.3", features = [
   "Document",
   "Element",
   "HtmlElement",
+  "Performance",
   "Window",
 ] }
 tracing = "0.1"
 tracing-wasm = "0.2"
+
+[build-dependencies]
+hiroz-codegen = { path = "../../ros-z-wasm/crates/hiroz-codegen" }
 
 [patch.crates-io]
 zenoh = { path = "../../zenoh-wasm/zenoh" }

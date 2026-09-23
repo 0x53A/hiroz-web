@@ -1,9 +1,13 @@
 FROM ros:lyrical
 
-# Install demo nodes + rmw_zenoh from ROS binary packages.
-RUN apt-get update && apt-get install -y \
+# Refresh the base's ROS libraries with the same package index as the new
+# fixtures; mixing old service_msgs with newer generated type support can fail
+# at load time with missing symbols.
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     ros-lyrical-demo-nodes-cpp \
     ros-lyrical-rmw-zenoh-cpp \
+    ros-lyrical-rclpy \
+    ros-lyrical-example-interfaces \
     && rm -rf /var/lib/apt/lists/*
 
 COPY zenoh_session.json5 /config/zenoh_session.json5

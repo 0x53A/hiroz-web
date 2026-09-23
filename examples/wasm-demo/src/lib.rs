@@ -6,6 +6,18 @@
 //! exclusively through flume channels: incoming /chatter samples flow out via
 //! `ros_poll()`, outgoing messages flow in via `ros_publish()`.
 
+mod action_tests;
+
+pub use hiroz_msgs::size_estimation;
+
+pub mod turtle_interfaces {
+    include!(concat!(env!("OUT_DIR"), "/generated.rs"));
+    pub use ros::{nav2_msgs, turtlesim_msgs};
+}
+mod lock_tests;
+mod turtle;
+mod turtlesim_tests;
+
 use std::sync::OnceLock;
 
 use wasm_bindgen::prelude::*;
@@ -38,7 +50,7 @@ impl MessageProfile {
 /// Initialize the threaded runtime. Returns false if SharedArrayBuffer is
 /// unavailable (missing COOP/COEP headers).
 #[wasm_bindgen]
-pub fn ros_start(shim_url: &str) -> bool {
+pub async fn ros_start(shim_url: &str) -> Result<bool, JsValue> {
     if let Ok(error_ctor) = js_sys::Reflect::get(&js_sys::global(), &JsValue::from_str("Error")) {
         let _ = js_sys::Reflect::set(
             &error_ctor,
@@ -53,17 +65,18 @@ pub fn ros_start(shim_url: &str) -> bool {
             web_sys::console::error_1(&stack);
         }
     }));
-    tracing_wasm::set_as_global_default_with_config(
+    static TRACING: std::sync::Once = std::sync::Once::new();
+    TRACING.call_once(|| tracing_wasm::set_as_global_default_with_config(
         tracing_wasm::WASMLayerConfigBuilder::new()
             .set_max_level(tracing::Level::INFO)
             .set_console_config(tracing_wasm::ConsoleConfig::ReportWithoutConsoleColor)
             .build(),
-    );
-    zenoh_runtime::__zenoh_init_threaded_runtime(shim_url)
+    ));
+    zenoh_runtime::__zenoh_init_threaded_runtime_async(shim_url, 10_000).await
 }
 
 /// Spawn the ROS worker task on the Application worker. Call once, after
-/// `ros_start` returned true.
+/// `ros_start` resolved to true.
 #[wasm_bindgen]
 pub fn ros_connect(router_endpoint: String, message_profile: String) {
     let (from_tx, from_rx) = flume::unbounded::<String>();
@@ -256,14 +269,22 @@ async fn js_sleep(ms: i32) {
 pub async fn run_threaded_ros_test() {
     log("=== hiroz threaded WASM <-> ROS 2 test ===");
 
-    if !ros_start("./pkg/hiroz_wasm_demo.js") {
-        log("FAIL: SharedArrayBuffer not available (COOP/COEP headers missing?)");
-        log("=== Tests complete ===");
-        return;
+    match ros_start("./pkg/hiroz_wasm_demo.js").await {
+        Ok(true) => (),
+        other => {
+            log(&format!("FAIL: threaded runtime startup: {other:?}"));
+            log("=== Tests complete ===");
+            return;
+        }
     }
     log("Threaded runtime initialized (5 workers)");
-    js_sleep(500).await;
 
+    log("Regression: hiroz clock and service/discovery timeouts...");
+    if test_platform_timers().await {
+        log("  PASS: real clock sleep, discovery timeout and service timeout");
+    } else {
+        log("  FAIL: hiroz platform timers");
+    }
     ros_connect("ws/127.0.0.1:7448".to_string(), "lyrical".to_string());
 
     // Wait for CONNECTED
@@ -327,8 +348,118 @@ pub async fn run_threaded_ros_test() {
     if echoed {
         log("  PASS: publish sent (echoed back through the router)");
     } else {
-        log("  WARN: publish not echoed back within 5s (check listener logs)");
+        log("  FAIL: publish not echoed back within 5s (check listener logs)");
     }
 
     log("=== Tests complete ===");
+}
+
+async fn test_platform_timers() -> bool {
+    let (tx, rx) = flume::bounded(1);
+    zenoh_runtime::ZRuntime::Application.spawn(async move {
+        zenoh_runtime::spawn_on_current(async move {
+            use hiroz::Builder;
+            use std::time::Duration;
+            let result = async {
+                let start = zenoh_runtime::wasm_yield::Instant::now();
+                hiroz::time::ZClock::system()
+                    .sleep(Duration::from_millis(30))
+                    .await;
+                if start.elapsed() < Duration::from_millis(25) {
+                    return Err("clock returned early".to_string());
+                }
+                let mut config = zenoh::Config::default();
+                config.insert_json5("mode", "\"client\"").unwrap();
+                config
+                    .insert_json5("connect/endpoints", "[\"ws/127.0.0.1:7448\"]")
+                    .unwrap();
+                config
+                    .insert_json5("scouting/multicast/enabled", "false")
+                    .unwrap();
+                let ctx = hiroz::context::ZContextBuilder::default()
+                    .with_zenoh_config(config)
+                    .build_async()
+                    .await
+                    .map_err(|e| e.to_string())?;
+                let node = ctx
+                    .create_node("wasm_timer_regression")
+                    .build()
+                    .map_err(|e| e.to_string())?;
+                let publisher = node
+                    .create_pub::<ExampleString>("/review/no_subscribers")
+                    .build()
+                    .map_err(|e| e.to_string())?;
+                if publisher
+                    .wait_for_subscription(1, Duration::from_millis(30))
+                    .await
+                {
+                    return Err("unexpected subscriber".to_string());
+                }
+                // Hold the request in the server's queue so the call must time out.
+                use hiroz_msgs::example_interfaces::{srv::AddTwoInts, AddTwoIntsRequest};
+                let _server = node
+                    .create_service::<AddTwoInts>("/review/no_reply")
+                    .build()
+                    .map_err(|e| e.to_string())?;
+                let client = node
+                    .create_client::<AddTwoInts>("/review/no_reply")
+                    .build()
+                    .map_err(|e| e.to_string())?;
+                let result = client
+                    .call_with_timeout(&AddTwoIntsRequest { a: 1, b: 2 }, Duration::from_millis(40))
+                    .await;
+                match result {
+                    Err(e) if hiroz::error::is_timeout(&*e) => Ok(()),
+                    other => Err(format!("expected timeout: {other:?}")),
+                }
+            }
+            .await;
+            if let Err(e) = &result {
+                web_sys::console::error_1(&JsValue::from_str(e));
+            }
+            let _ = tx.send(result.is_ok());
+        });
+    });
+    zenoh_runtime::recv_async_anywhere(&rx)
+        .await
+        .unwrap_or(false)
+}
+
+#[wasm_bindgen]
+pub async fn test_transport_refill() -> Result<(), JsValue> {
+    zenoh_transport::common::test_wasm_refill().await.map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+/// Repeated shared-waker polls must retain, then release, owned JS timers.
+#[wasm_bindgen]
+pub async fn test_repoll_ownership() -> Result<(), JsValue> {
+    use std::{future::Future, pin::Pin, sync::Arc, task::{Context, Wake, Waker}};
+    struct Noop;
+    impl Wake for Noop { fn wake(self: Arc<Self>) {} }
+    let waker=Waker::from(Arc::new(Noop));
+    let mut cx=Context::from_waker(&waker);
+    let pending=|| zenoh_runtime::__zenoh_repoll_counts().get(0).as_f64().unwrap() as usize;
+    let before=pending();
+    let timers_before=zenoh_runtime::wasm_yield::active_js_timers();
+    {
+        let (_tx1,rx1)=flume::bounded::<()>(1);
+        let (_tx2,rx2)=flume::bounded::<()>(1);
+        let (_tx3,rx3)=flume::bounded::<()>(1);
+        let mut first=std::pin::pin!(zenoh_runtime::recv_async_anywhere(&rx1));
+        let mut second=std::pin::pin!(zenoh_runtime::recv_async_anywhere(&rx2));
+        let mut join=zenoh_runtime::ZRuntime::Application.spawn(async move {let _=rx3.recv_async().await;});
+        for _ in 0..1000 {
+            assert!(first.as_mut().poll(&mut cx).is_pending());
+            assert!(second.as_mut().poll(&mut cx).is_pending());
+            assert!(Pin::new(&mut join).poll(&mut cx).is_pending());
+        }
+        assert!(pending()<=before+3,"shared polls multiplied repoll timers");
+        assert!(zenoh_runtime::wasm_yield::active_js_timers()==timers_before+3);
+        join.abort();
+    }
+    assert!(pending()<=before,"dropping pending receives/join retained repoll timers");
+    zenoh_runtime::wasm_yield::sleep_ms(30).await;
+    // The just-completed 30ms sleep callback itself is reclaimed on the next cleanup tick.
+    assert!(zenoh_runtime::wasm_yield::active_js_timers()<=timers_before+1,"canceled JS timer closures were not cleaned up");
+    Ok(())
 }

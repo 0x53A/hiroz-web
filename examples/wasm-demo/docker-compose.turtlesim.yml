@@ -1,0 +1,11 @@
+# Native interoperability qualification; separate from the router-only demo.
+services:
+  zenoh-router:
+    image: eclipse/zenoh:1.10.0
+    command: ["--no-multicast-scouting", "--listen", "tcp/0.0.0.0:7447", "--listen", "ws/0.0.0.0:7448"]
+    ports: ["127.0.0.1:7748:7448"]
+  turtlesim:
+    build:
+      context: .
+      dockerfile: Dockerfile.turtlesim
+    depends_on: [zenoh-router]

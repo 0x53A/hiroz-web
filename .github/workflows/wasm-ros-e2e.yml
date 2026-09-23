@@ -3,6 +3,7 @@ name: WASM ROS E2E
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -13,6 +14,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  native-actions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      RUSTUP_TOOLCHAIN: stable
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Rust toolchain
+        run: rustup toolchain install stable --profile minimal
+
+      - name: Verify native action lifecycle, queue deadlines and generated hashes
+        working-directory: ros-z-wasm
+        run: |
+          cargo test --locked -p hiroz --test action -- --test-threads=1
+          cargo test --locked -p hiroz --lib queue::timeout_tests
+          cargo test --locked -p hiroz --test queue
+          cargo test --locked -p hiroz-codegen --test action_nested_deps
+
   hiroz-talker:
     runs-on: ubuntu-latest
     env:
@@ -25,11 +47,14 @@ jobs:
 
       - name: Install Rust toolchain
         run: |
-          rustup toolchain install nightly --profile minimal --component rust-src
+          rustup toolchain install nightly --profile minimal --component rust-src --component clippy
           rustup target add wasm32-unknown-unknown --toolchain nightly
 
       - name: Install wasm-bindgen
-        run: cargo install wasm-bindgen-cli --version 0.2.126 --locked
+        run: cargo install wasm-bindgen-cli --version 0.2.127 --locked
+
+      - name: Enforce WASM runtime boundary (including negative canary)
+        run: ./tools/check-wasm-boundary.sh
 
       - name: Install browser test dependencies
         working-directory: examples/wasm-demo
@@ -37,4 +62,83 @@ jobs:
 
       - name: Run browser to ROS 2 integration test
         working-directory: examples/wasm-demo
-        run: ./run-tests.sh
+        run: ./run-tests.sh --keep-stack
+
+      - name: Test browser result validation
+        run: node --test tools/tests/browser-test-result.test.mjs
+
+      - name: Run threaded runtime and WebSocket lifecycle regressions
+        working-directory: examples/wasm-threaded
+        run: |
+          npm ci
+          ./build.sh
+          python3 serve.py 8082 &
+          TEST_SERVER_PID=$!
+          trap 'kill "$TEST_SERVER_PID"' EXIT
+          node run_readiness.mjs
+          node run_timer_migration.mjs
+          node run_headless.mjs 60
+
+      - name: Verify recovery with the original browser node
+        working-directory: examples/wasm-demo
+        run: |
+          python3 serve.py 8083 &
+          TEST_SERVER_PID=$!
+          trap 'kill "$TEST_SERVER_PID"' EXIT
+          node run_lock_contention.mjs
+          node run_ui.mjs
+          node run_reconnect.mjs --disposable-stack
+
+      - name: Verify browser TurtleBot device and groundstation through Zenoh
+        working-directory: examples/wasm-demo
+        run: ./run-turtle-tests.sh --skip-build
+
+      - uses: browser-actions/setup-firefox@v1
+        with:
+          firefox-version: latest
+
+      - name: Verify Firefox telemetry and transport pressure
+        working-directory: examples/wasm-demo
+        run: ./run-telemetry-tests.sh --skip-build
+
+      - name: Verify groundstation UI against native ROS 2 turtlesim
+        working-directory: examples/wasm-demo
+        run: ./run-native-turtle-tests.sh --skip-build
+
+      - name: Verify ROS 2 actions in both browser directions
+        working-directory: examples/wasm-demo
+        run: ./run-action-tests.sh --skip-build
+
+      - name: Stop test ROS stack
+        if: always()
+        working-directory: examples/wasm-demo
+        run: docker compose down
+
+  firefox-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Rust and wasm-pack
+        working-directory: zenoh-wasm/tests/wasm
+        run: |
+          rustup show active-toolchain
+          rustup target add wasm32-unknown-unknown
+          cargo install wasm-pack --locked
+
+      # Action maintainers' documented latest-channel setup keeps the browser
+      # and driver current, rather than relying on the runner's Firefox snap.
+      - uses: browser-actions/setup-firefox@v1
+        with:
+          firefox-version: latest
+
+      - uses: browser-actions/setup-geckodriver@latest
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run single-threaded runtime regressions in Firefox
+        working-directory: zenoh-wasm/tests/wasm
+        run: wasm-pack test --headless --firefox -- --test runtime

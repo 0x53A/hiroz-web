@@ -5,55 +5,46 @@ compiled to WebAssembly with a SharedArrayBuffer threadpool — a full zenoh
 client and a ROS 2 node running in a browser tab, talking to real ROS 2
 systems via rmw_zenoh.
 
-**Live demo:** https://0x53a.github.io/hiroz-web/hiroz/ — connect to a zenoh
-router, watch the live `/chatter` feed from a ROS 2 talker, publish your own
-ROS String messages. (Landing page with all demos:
-https://0x53a.github.io/hiroz-web/)
+## Browser robot demo
 
-## Trying the demo against your own ROS 2 system
+The interactive example has two roles: **Groundstation** and **Simulated
+Device**. Open one of each and connect them to the same router. The device
+runs a small differential-drive simulation; the groundstation receives real
+ROS telemetry, sends velocity commands, and submits/cancels navigation goals.
+All communication between the windows goes through Zenoh.
 
-The browser needs two things: a zenoh router with a WebSocket listener, and
-ROS 2 nodes speaking rmw_zenoh through that router.
-
-The browser demo lets you choose the `/chatter` message profile before
-connecting: Jazzy uses `std_msgs/msg/String`, and Lyrical uses
-`example_interfaces/msg/String`.
-
-**Option A — docker compose (router + ROS 2 Lyrical talker/listener):**
+The hosted version needs only a local router:
 
 ```sh
-git clone --recursive https://github.com/0x53A/hiroz-web
-cd hiroz-web/examples/wasm-demo
-docker compose up -d
+zenohd --listen ws/127.0.0.1:7448
 ```
 
-**Option B — manually:**
+The [Pages URL](https://0x53a.github.io/hiroz-web/hiroz/) serves the last deployed
+build; local changes do not update it. For this checkout, build and serve
+`examples/wasm-demo` as described in its [README](examples/wasm-demo/README.md).
+No ROS installation or Python robot service is needed for the two-browser
+demo. A local HTTP server is needed only when serving the checkout yourself.
 
-```sh
-# zenoh router with a WebSocket listener
-zenohd --listen tcp/0.0.0.0:7447 --listen ws/0.0.0.0:7448
+The default TurtleBot profile uses `TwistStamped`, `Odometry`, and the
+Jazzy `NavigateToPose` action definition. The separate ROS turtlesim profile
+uses `Twist`, `turtlesim_msgs/Pose`, and `RotateAbsolute` (heading goals).
+Settings are shared by the **Open simulated device** / **Open groundstation**
+link. Device simulation uses direct motion without obstacle planning.
 
-# ROS 2 nodes via rmw_zenoh (in a sourced ROS 2 environment)
-export RMW_IMPLEMENTATION=rmw_zenoh_cpp
-ros2 run demo_nodes_cpp talker &
-ros2 run demo_nodes_cpp listener &
-```
+For a real robot, close the simulated device and configure the groundstation
+for the robot's actual namespace, domain, topic types and frames. Navigation
+requires a running compatible Nav2 server. The browser transport speaks
+`rmw_zenoh`; a DDS-only robot needs a compatible gateway, not simply
+`zenoh-bridge-ros2dds` (which uses a different Zenoh protocol).
 
-Then open the [demo page](https://0x53a.github.io/hiroz-web/hiroz/), set the
-endpoint to `ws/127.0.0.1:7448`, and click connect. You should see the
-talker's `Hello World: n` messages streaming in; what you publish appears in
-the listener's log.
+From an HTTPS-hosted page, loopback WS connections depend on browser
+local-network permissions. Use a browser-trusted WSS endpoint for remote
+routers. The service-worker isolation shim does not remove WebSocket network
+permissions or mixed-content restrictions.
 
-From the https Pages site, plain `ws/` endpoints work only for
-`127.0.0.1`/`localhost` (mixed-content rules); remote routers need a TLS
-listener and a `wss/` endpoint. Chrome additionally asks for the
-**Local Network Access** permission when a public page connects to
-localhost — accept the prompt.
-
-Zenoh 1.10.0 fixes the WebSocket accept-loop bug where a failed handshake
-permanently killed the router's ws listener. If you run a 1.9.x router and
-browsers stop connecting while ROS 2 keeps working, restart or upgrade the
-router. See `zenoh-wasm/BUGREPORT-ws-listener-dies.md` for the original report.
+The original ROS talker/listener and Fibonacci integration fixtures remain
+available through `run-tests.sh` and `run-action-tests.sh`; their ROS
+containers are test dependencies, not dependencies of the browser demo.
 
 ## Layout
 
@@ -76,3 +67,13 @@ GitHub Pages cannot send custom headers, so the pages ship the
 `coi-serviceworker` shim, which injects the headers from a service worker
 (one automatic reload on first visit). When serving locally, use the
 example's `serve.py`, which sends real COOP/COEP headers.
+
+## Stability and WASM runtime boundaries
+
+The [2026-09-22 review](docs/reviews/2026-09-22-system-review.md) records the
+current fixes, tested behavior and remaining groundstation-port blockers.
+Run `./tools/check-wasm-boundary.sh` to reject runtime-dependent Tokio/native
+calls in WASM builds. Tokio synchronization remains allowed. ROS action clients
+and servers run on the WASM compute workers; the demo includes a dedicated
+[bidirectional action test](examples/wasm-demo/README.md#ros-2-actions). Use
+`build_async()` / `shutdown_async()` for contexts.

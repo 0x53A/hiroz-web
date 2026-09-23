@@ -25,21 +25,17 @@ pub async fn run_threaded_test(endpoint: String) {
 
     // Initialize the threaded runtime with the shim URL
     log("Initializing threaded runtime...");
-    let ok = zenoh_runtime::__zenoh_init_threaded_runtime("./pkg/zenoh_wasm_threaded_test.js");
-    if !ok {
-        log("FAIL: SharedArrayBuffer not available. Are COOP/COEP headers set?");
-        return;
+    match zenoh_runtime::__zenoh_init_threaded_runtime_async("./pkg/zenoh_wasm_threaded_test.js", 10_000).await {
+        Ok(true) => log("Threaded runtime ready!"),
+        other => {
+            log(&format!("FAIL: threaded runtime startup: {other:?}"));
+            return;
+        }
     }
-    log("Threaded runtime initialized!");
-
-    // Give workers a moment to start up
-    sleep_ms(500).await;
 
     // Test 1: spawn a future on a specific runtime and get the result
     log("Test 1: cross-worker spawn...");
-    let handle = zenoh_runtime::ZRuntime::Net.spawn(async {
-        42u32
-    });
+    let handle = zenoh_runtime::ZRuntime::Net.spawn(async { 42u32 });
     match handle.await {
         Ok(val) if val == 42 => log("  PASS: spawn returned correct value (42)"),
         Ok(val) => log(&format!("  FAIL: expected 42, got {val}")),
@@ -88,9 +84,8 @@ pub async fn run_threaded_test(endpoint: String) {
         // block_in_place: blocks the Application worker's thread via Condvar.
         // The flume channel's waker calls Condvar::notify when the Net worker
         // sends the value, unblocking this thread.
-        zenoh_runtime::ZRuntime::Application.block_in_place(async {
-            rx.recv_async().await.unwrap_or(0)
-        })
+        zenoh_runtime::ZRuntime::Application
+            .block_in_place(async { rx.recv_async().await.unwrap_or(0) })
     });
     match h.await {
         Ok(99) => log("  PASS: block_in_place resolved correctly (99)"),
@@ -98,15 +93,105 @@ pub async fn run_threaded_test(endpoint: String) {
         Err(e) => log(&format!("  FAIL: join error: {e}")),
     }
 
+    log("Regression: timer progress under a continuously yielding task...");
+    let h = zenoh_runtime::ZRuntime::Application.spawn(async {
+        let busy = zenoh_runtime::ZRuntime::Application.spawn(async {
+            loop {
+                zenoh_runtime::wasm_yield::yield_now().await;
+            }
+        });
+        zenoh_runtime::wasm_yield::sleep_ms(50).await;
+        busy.abort();
+        busy.await.is_err()
+    });
+    if matches!(h.await, Ok(true)) {
+        log("  PASS: timer fired and busy task aborted");
+    } else {
+        log("  FAIL: timer/abort regression");
+    }
+
+    log("Regression: cancellation after the task starts and child isolation...");
+    let h = zenoh_runtime::ZRuntime::Application.spawn(async {
+        let parent = zenoh_task::CancellationToken::new();
+        let child = parent.child_token();
+        child.cancel();
+        if parent.is_cancelled() {
+            return false;
+        }
+        let waiter_token = parent.clone();
+        let waiter = zenoh_runtime::ZRuntime::Application.spawn(async move {
+            waiter_token
+                .run_until_cancelled(std::future::pending::<()>())
+                .await
+        });
+        zenoh_runtime::wasm_yield::sleep_ms(20).await;
+        parent.cancel();
+        matches!(waiter.await, Ok(None))
+    });
+    if matches!(h.await, Ok(true)) {
+        log("  PASS: cancellation stops pending task; child is independent");
+    } else {
+        log("  FAIL: cancellation semantics");
+    }
+
+    log("Regression: timed shutdown on a compute worker...");
+    let h = zenoh_runtime::ZRuntime::Application.spawn(async {
+        use std::time::Duration;
+        let (tx, rx) = flume::bounded::<()>(1);
+        let mut task = zenoh_task::TerminatableTask::spawn(
+            zenoh_runtime::ZRuntime::Application,
+            async move { let _ = rx.recv_async().await; },
+            zenoh_task::CancellationToken::new(),
+        );
+        if task.terminate(Duration::from_millis(5)) {
+            return false;
+        }
+        tx.send(()).unwrap();
+        if !task.terminate(Duration::from_secs(1)) {
+            return false;
+        }
+        let controller = zenoh_task::TaskController::default();
+        let pending = controller.spawn_abortable(std::future::pending::<()>());
+        controller.terminate_all(Duration::from_secs(1)) == 0
+            && matches!(pending.await, Ok(None))
+    });
+    if matches!(h.await, Ok(true)) {
+        log("  PASS: compute shutdown honors timeout and joins on retry");
+    } else {
+        log("  FAIL: compute shutdown lifecycle");
+    }
+
+    log("Regression: JS timer cleanup after cross-worker drop...");
+    let baseline = zenoh_runtime::wasm_yield::active_js_timers();
+    let sleeps: Vec<_> = (0..128)
+        .map(|_| zenoh_runtime::wasm_yield::sleep_ms(u32::MAX))
+        .collect();
+    let h = zenoh_runtime::ZRuntime::Application.spawn(async move {
+        drop(sleeps);
+    });
+    let joined = h.await.is_ok();
+    zenoh_runtime::wasm_yield::sleep_ms(80).await;
+    if joined && zenoh_runtime::wasm_yield::active_js_timers() <= baseline + 1 {
+        log("  PASS: JS timers dropped on another worker release their callbacks");
+    } else {
+        log("  FAIL: cross-worker JS timer cleanup");
+    }
+
     // Test 5: zenoh session open (requires zenohd on the given endpoint)
-    log(&format!("Test 5: zenoh session open on worker ({endpoint})..."));
+    log(&format!(
+        "Test 5: zenoh session open on worker ({endpoint})..."
+    ));
     let ep = endpoint.clone();
     let h = zenoh_runtime::ZRuntime::Application.spawn(async move {
         web_sys::console::log_1(&JsValue::from_str("[test5] creating config..."));
         let mut config = zenoh::Config::default();
         config.insert_json5("mode", r#""client""#).unwrap();
-        config.insert_json5("connect/endpoints", &format!(r#"["{ep}"]"#)).unwrap();
-        config.insert_json5("scouting/multicast/enabled", "false").unwrap();
+        config
+            .insert_json5("connect/endpoints", &format!(r#"["{ep}"]"#))
+            .unwrap();
+        config
+            .insert_json5("scouting/multicast/enabled", "false")
+            .unwrap();
         web_sys::console::log_1(&JsValue::from_str("[test5] calling zenoh::open()..."));
         match zenoh::open(config).await {
             Ok(session) => {
@@ -122,7 +207,9 @@ pub async fn run_threaded_test(endpoint: String) {
     });
     match h.await {
         Ok(Some(zid)) => log(&format!("  PASS: session opened, ZID={zid}")),
-        Ok(None) => log(&format!("  FAIL: session open returned error (is zenohd running on {endpoint}?)")),
+        Ok(None) => log(&format!(
+            "  FAIL: session open returned error (is zenohd running on {endpoint}?)"
+        )),
         Err(e) => log(&format!("  FAIL: join error: {e}")),
     }
 
@@ -132,8 +219,15 @@ pub async fn run_threaded_test(endpoint: String) {
     let h = zenoh_runtime::ZRuntime::Application.spawn(async move {
         let mut config = zenoh::Config::default();
         config.insert_json5("mode", r#""client""#).unwrap();
-        config.insert_json5("connect/endpoints", &format!(r#"["{ep}"]"#)).unwrap();
-        config.insert_json5("scouting/multicast/enabled", "false").unwrap();
+        config
+            .insert_json5("connect/endpoints", &format!(r#"["{ep}"]"#))
+            .unwrap();
+        config
+            .insert_json5("scouting/multicast/enabled", "false")
+            .unwrap();
+        let publisher_session = zenoh::open(config.clone())
+            .await
+            .map_err(|e| e.to_string())?;
         let session = match zenoh::open(config).await {
             Ok(s) => s,
             Err(e) => return Err(format!("open: {e}")),
@@ -144,7 +238,10 @@ pub async fn run_threaded_test(endpoint: String) {
         };
         // Give the router a moment to propagate the subscription
         zenoh_runtime::wasm_yield::sleep_ms(500).await;
-        if let Err(e) = session.put("wasm/threaded/roundtrip", "ping-from-worker").await {
+        if let Err(e) = publisher_session
+            .put("wasm/threaded/roundtrip", "ping-from-worker")
+            .await
+        {
             return Err(format!("put: {e}"));
         }
         let sample = match sub.recv_async().await {
@@ -157,6 +254,7 @@ pub async fn run_threaded_test(endpoint: String) {
             .map(|s| s.into_owned())
             .unwrap_or_default();
         let _ = session.close().await;
+        publisher_session.close().await.map_err(|e| e.to_string())?;
         Ok(payload)
     });
     match h.await {
@@ -188,4 +286,114 @@ async fn sleep_ms(ms: u32) {
     }))
     .await
     .unwrap();
+}
+
+/// Called by the headless runner against its disposable raw WebSocket peer.
+#[wasm_bindgen]
+pub async fn test_link_lifecycle(endpoint: String) -> bool {
+    zenoh_runtime::ZRuntime::Application
+        .spawn(async move {
+            use zenoh_link_commons::LinkManagerUnicastTrait;
+            let (tx, _rx) = flume::unbounded();
+            let manager = zenoh_link_ws::LinkManagerUnicastWs::new(tx);
+            let command = if endpoint.ends_with("/oversized") {
+                b"oversized".as_slice()
+            } else if endpoint.ends_with("/text") {
+                b"text".as_slice()
+            } else {
+                b"close".as_slice()
+            };
+            let endpoint: zenoh::config::EndPoint = endpoint.parse().unwrap();
+            if zenoh_link::LinkKind::try_from(&endpoint).is_err() {
+                return false;
+            }
+            let link = manager.new_link(endpoint).await.unwrap();
+            link.write_all(command, None).await.unwrap();
+            let mut buf = [0u8; 32];
+            let read = link.read(&mut buf, None);
+            let timeout = zenoh_runtime::wasm_yield::sleep_ms(500);
+            use futures::FutureExt;
+            futures::pin_mut!(read, timeout);
+            let closed = futures::select! {
+                result = read.fuse() => result.is_err(),
+                _ = timeout.fuse() => false,
+            };
+            let write_failed = link.write_all(b"after-close", None).await.is_err();
+            closed && write_failed
+        })
+        .await
+        .unwrap_or(false)
+}
+
+#[wasm_bindgen]
+pub async fn test_dropped_links(endpoint: String, cancel_open: bool) -> bool {
+    zenoh_runtime::ZRuntime::Application
+        .spawn(async move {
+            use futures::FutureExt;
+            use zenoh_link_commons::LinkManagerUnicastTrait;
+            let (tx, _rx) = flume::unbounded();
+            let manager = zenoh_link_ws::LinkManagerUnicastWs::new(tx);
+            for _ in 0..10 {
+                let open = manager.new_link(endpoint.parse().unwrap());
+                if cancel_open {
+                    let timer = zenoh_runtime::wasm_yield::sleep_ms(20);
+                    futures::pin_mut!(open, timer);
+                    futures::select! {
+                        _ = open.fuse() => return false,
+                        _ = timer.fuse() => {},
+                    }
+                } else {
+                    let Ok(link) = open.await else { return false };
+                    drop(link); // no explicit close(): owner must still release socket
+                }
+            }
+            zenoh_runtime::wasm_yield::sleep_ms(100).await;
+            true
+        })
+        .await
+        .unwrap_or(false)
+}
+
+/// A main-thread sleep must use the compute timer after crossing to a worker.
+/// The browser regression delays its creating JS callback to test independence
+/// from that event loop without waiting for a multi-day timer chunk.
+#[wasm_bindgen]
+pub async fn test_migrated_js_sleep() -> bool {
+    let start = zenoh_runtime::wasm_yield::Instant::now();
+    let sleep = zenoh_runtime::wasm_yield::sleep_ms(43);
+    matches!(zenoh_runtime::ZRuntime::Application.spawn(async move {
+        sleep.await;
+        let elapsed = start.elapsed();
+        elapsed >= std::time::Duration::from_millis(43)
+            && elapsed < std::time::Duration::from_secs(2)
+    }).await, Ok(true))
+}
+
+/// A registered timer must migrate away from a worker parked in synchronous work.
+#[wasm_bindgen]
+pub async fn test_migrated_compute_sleep() -> bool {
+    use std::{future::Future, sync::{Arc, Mutex, Condvar}, task::{Context, Poll}, time::Duration};
+    let (send, receive)=flume::bounded(1);
+    let parked=Arc::new((Mutex::new(false),Condvar::new()));
+    let old_parked=parked.clone();
+    let old=zenoh_runtime::ZRuntime::Application.spawn(async move {
+        let mut timer=Box::pin(zenoh_runtime::wasm_yield::sleep_ms(60));
+        let waker=futures::task::noop_waker();
+        assert!(matches!(timer.as_mut().poll(&mut Context::from_waker(&waker)),Poll::Pending));
+        let guard=old_parked.0.lock().unwrap();
+        send.send(timer).unwrap();
+        let _=old_parked.1.wait_timeout(guard,Duration::from_millis(500)).unwrap();
+    });
+    let timer=zenoh_runtime::recv_async_anywhere(&receive).await.unwrap();
+    let start=zenoh_runtime::wasm_yield::Instant::now();
+    let moved=zenoh_runtime::ZRuntime::Net.spawn(async move {
+        timer.await;
+        let elapsed=start.elapsed();
+        *parked.0.lock().unwrap()=true;
+        parked.1.notify_one();
+        elapsed<Duration::from_millis(300)
+    });
+    let ok=matches!(moved.await,Ok(true));
+    let _=old.await;
+    ok
 }

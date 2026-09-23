@@ -1,0 +1,8 @@
+[workspace]
+[package]
+name = "wasm-boundary-canary"
+version = "0.0.0"
+edition = "2021"
+publish = false
+[dependencies]
+tokio = { version = "1", default-features = false, features = ["time"] }

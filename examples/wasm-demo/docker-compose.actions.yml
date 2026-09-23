@@ -1,0 +1,17 @@
+# Separate disposable project: docker compose -p hiroz-wasm-actions -f docker-compose.actions.yml ...
+services:
+  zenoh-router:
+    image: eclipse/zenoh:1.10.0
+    command: ["--no-multicast-scouting", "--listen", "tcp/0.0.0.0:7447", "--listen", "ws/0.0.0.0:7448"]
+    ports: ["127.0.0.1:7548:7448"]
+  ros2:
+    build:
+      context: .
+      dockerfile: Dockerfile.ros2
+    depends_on: [zenoh-router]
+    environment:
+      RMW_IMPLEMENTATION: rmw_zenoh_cpp
+      ZENOH_SESSION_CONFIG_URI: /config/zenoh_session.json5
+    volumes: ["./action_peer.py:/action_peer.py:ro"]
+    entrypoint: ["/ros_entrypoint.sh"]
+    command: ["python3", "-u", "/action_peer.py", "server"]

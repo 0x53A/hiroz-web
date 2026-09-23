@@ -14,7 +14,7 @@
 
     async function run() {
       await wasm_bindgen('./pkg/zenoh_wasm_threaded_test_bg.wasm');
-      await wasm_bindgen.run_threaded_test('ws/127.0.0.1:7448');
+      await wasm_bindgen.run_threaded_test(new URLSearchParams(location.search).get('router') || 'ws/127.0.0.1:7448');
       // Signal completion by setting a global
       window.__TEST_DONE__ = true;
       window.__TEST_LOGS__ = logs;

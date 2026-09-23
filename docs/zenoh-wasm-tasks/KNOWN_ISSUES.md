@@ -1,5 +1,9 @@
 # Zenoh WASM Port — Known Issues & Weaknesses
 
+> Historical notes: several “FIXED” claims below were incomplete. See the
+> [2026-09-08 stability review](../reviews/2026-09-08-wasm-stability.md) for
+> current fixes, regression coverage and remaining limitations.
+
 ## Critical (will cause problems in production)
 
 ### 1. ~~`Session::Drop` calls `.wait()` synchronously~~ FIXED

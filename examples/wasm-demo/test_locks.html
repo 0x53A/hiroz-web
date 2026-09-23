@@ -1,0 +1,14 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<title>hiroz browser lock regression</title>
+<script src="./pkg/hiroz_wasm_demo.js"></script>
+<script>
+window.lockTest = (async () => {
+  await wasm_bindgen('./pkg/hiroz_wasm_demo_bg.wasm');
+  if (!await wasm_bindgen.ros_start('./pkg/hiroz_wasm_demo.js')) throw Error('threaded runtime unavailable');
+  await wasm_bindgen.test_rwlock_contention();
+  await wasm_bindgen.test_session_task_cleanup();
+  return true;
+})();
+</script>

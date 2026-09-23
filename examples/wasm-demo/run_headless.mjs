@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { testResult } from '../../tools/browser-test-result.mjs';
 // Headless Chrome runner for the threaded hiroz <-> ROS 2 test.
 // Prerequisites: COEP server (python3 serve.py 8083), docker compose stack
 // in this directory (zenoh router + ROS 2 Lyrical talker/listener).
@@ -14,9 +15,10 @@ const browser = await puppeteer.launch({
   args: ['--no-sandbox', '--disable-gpu'],
 });
 
+let pageErrors = 0;
 const page = await browser.newPage();
 page.on('console', msg => console.log(`[${msg.type()}] ${msg.text()}`));
-page.on('pageerror', err => console.log(`[ERR] ${err.message}`));
+page.on('pageerror', err => { pageErrors++; console.log(`[ERR] ${err.stack || err.message}`); });
 
 await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 10000 });
 console.log(`--- page loaded, waiting up to ${TIMEOUT_S}s ---`);
@@ -37,9 +39,10 @@ if (!output.includes('Tests complete')) {
 
 console.log('\n' + output);
 
-const passes = (output.match(/PASS/g) || []).length;
-const fails = (output.match(/FAIL/g) || []).length;
+const result = testResult(output, 4, pageErrors);
+const passes = result.passes;
+const fails = result.fails;
 console.log(`\n--- ${passes} passed, ${fails} failed ---`);
 
 await browser.close();
-process.exit(fails > 0 ? 1 : 0);
+process.exit(!result.ok || fails > 0 ? 1 : 0);

@@ -3010,6 +3010,7 @@ name = "zenoh-wasm-threaded-test"
 version = "0.1.0"
 dependencies = [
  "flume",
+ "futures",
  "js-sys",
  "tokio",
  "tokio-util",
@@ -3019,7 +3020,11 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "zenoh",
+ "zenoh-link",
+ "zenoh-link-commons",
+ "zenoh-link-ws",
  "zenoh-runtime",
+ "zenoh-task",
 ]
 
 [[package]]

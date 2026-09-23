@@ -1,0 +1,8 @@
+[workspace]
+[package]
+name = "cdr-sequence-allocation-repro"
+version = "0.0.0"
+edition = "2021"
+publish = false
+[dependencies]
+hiroz-cdr = { path = "../../../ros-z-wasm/crates/hiroz-cdr" }

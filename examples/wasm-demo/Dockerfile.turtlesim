@@ -1,0 +1,11 @@
+# Test-only native peer. The browser demo itself needs no ROS installation.
+FROM ros:lyrical
+# Keep the base's ROS libraries and newly installed type support in sync.
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+    ros-lyrical-turtlesim ros-lyrical-rmw-zenoh-cpp \
+    && rm -rf /var/lib/apt/lists/*
+COPY zenoh_session.json5 /config/zenoh_session.json5
+ENV RMW_IMPLEMENTATION=rmw_zenoh_cpp
+ENV ZENOH_SESSION_CONFIG_URI=/config/zenoh_session.json5
+ENV QT_QPA_PLATFORM=offscreen
+CMD ["ros2", "run", "turtlesim", "turtlesim_node"]

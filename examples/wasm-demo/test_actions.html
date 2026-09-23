@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>ROS 2 browser action integration</title>
+<pre id="output"></pre>
+<script src="./pkg/hiroz_wasm_demo.js"></script>
+<script>
+(async () => {
+  await wasm_bindgen('./pkg/hiroz_wasm_demo_bg.wasm');
+  if (!await wasm_bindgen.ros_start(new URL('./pkg/hiroz_wasm_demo.js', location.href).href)) throw new Error('threaded runtime unavailable');
+  wasm_bindgen.actions_start();
+  setInterval(() => {
+    const lines = wasm_bindgen.actions_poll();
+    if (lines) document.getElementById('output').textContent += lines + '\n';
+  }, 50);
+})();
+</script>
