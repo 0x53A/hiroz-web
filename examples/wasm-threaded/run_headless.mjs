@@ -91,6 +91,9 @@ try {
       if (!ok || sockets.size) console.log(`cancelled opens: returned=${ok}, open sockets=${sockets.size}`);
       return ok && sockets.size === 0;
     });
+    await check('connection deadlines expire and alternate endpoints remain usable', () => page.evaluate(router =>
+      wasm_bindgen.test_connection_deadlines('ws/127.0.0.1:7451', router),
+      process.env.ZENOH_TEST_ENDPOINT || 'ws/127.0.0.1:7448'));
   }
   failed = !result.ok || extraFailures > 0 || pageErrors > 0;
   console.log(`${result.passes} core passes; ${result.fails + extraFailures} failures; ${pageErrors} browser errors`);

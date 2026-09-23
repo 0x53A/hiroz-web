@@ -70,6 +70,11 @@ example's `serve.py`, which sends real COOP/COEP headers.
 
 ## Stability and WASM runtime boundaries
 
+For a guide to the changes that upstream maintainers can reuse, see the
+[Zenoh branch notes](zenoh-wasm/WASM.md) and [hiroz branch notes](ros-z-wasm/WASM.md).
+The [upstream merge and cleanup review](docs/reviews/2026-09-23-upstream-cleanup.md)
+records the merged revisions, remaining compromises and fresh validation.
+
 The [2026-09-22 review](docs/reviews/2026-09-22-system-review.md) records the
 current fixes, tested behavior and remaining groundstation-port blockers.
 Run `./tools/check-wasm-boundary.sh` to reject runtime-dependent Tokio/native

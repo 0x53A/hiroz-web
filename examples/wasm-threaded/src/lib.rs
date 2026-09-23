@@ -290,6 +290,35 @@ async fn sleep_ms(ms: u32) {
 
 /// Called by the headless runner against its disposable raw WebSocket peer.
 #[wasm_bindgen]
+pub async fn test_connection_deadlines(stalled: String, router: String) -> bool {
+    zenoh_runtime::ZRuntime::Application.spawn(async move {
+        use std::time::Duration;
+        use zenoh_runtime::wasm_yield::Instant;
+        let mut config = zenoh::Config::default();
+        config.insert_json5("mode", "\"client\"").unwrap();
+        config.insert_json5("scouting/multicast/enabled", "false").unwrap();
+        config.insert_json5("transport/unicast/open_timeout", "100").unwrap();
+        // Isolate the transport deadline from the global connection deadline.
+        config.insert_json5("connect/timeout_ms", "0").unwrap();
+        config.insert_json5("connect/endpoints", &format!("[\"{stalled}\"]")).unwrap();
+        let started = Instant::now();
+        if zenoh::open(config.clone()).await.is_ok()
+            || started.elapsed() < Duration::from_millis(100)
+            || started.elapsed() > Duration::from_secs(2)
+        {
+            return false;
+        }
+        // A failed first endpoint must not prevent trying the next group.
+        config.insert_json5("connect/endpoints", &format!("[\"{stalled}\",\"{router}\"]")).unwrap();
+        match zenoh::open(config).await {
+            Ok(session) => session.close().await.is_ok(),
+            Err(_) => false,
+        }
+    }).await.unwrap_or(false)
+}
+
+/// Called by the headless runner against its disposable raw WebSocket peer.
+#[wasm_bindgen]
 pub async fn test_link_lifecycle(endpoint: String) -> bool {
     zenoh_runtime::ZRuntime::Application
         .spawn(async move {
